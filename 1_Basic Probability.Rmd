@@ -1,0 +1,224 @@
+---
+title: "Probability"
+author: "Amol Jadhav"
+date: "December 25, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# Probabaility
+```{r}
+## https://cran.r-project.org/web/packages/IPSUR/vignettes/IPSUR.pdf
+## install.packages("prob")
+
+library(prob)
+
+## The number 1 tells tosscoin that we only want to toss the coin once. We could toss it three times
+tosscoin(1)
+
+tosscoin(3)
+
+## We could roll a fair die
+## The rolldie function defaults to a 6-sided die, but we can specify others with the nsides argument. The command rolldie(3, nsides = 4) would be used to roll a 4-sided die three times
+
+rolldie(1)
+
+
+head(cards())
+
+
+# Sampling from Urns
+
+# Ordered with replacement
+urnsamples(1:3, size = 2, replace = TRUE, ordered = TRUE)
+
+#Ordered without replacement
+urnsamples(1:3, size = 2, replace = FALSE, ordered = TRUE)
+
+#Un-Ordered without replacement
+urnsamples(1:3, size = 2, replace = FALSE, ordered = FALSE)
+
+#Un-Ordered with replacement
+urnsamples(1:3, size = 2, replace = TRUE, ordered = FALSE)
+
+```
+
+# Events
+```{r}
+## Given a data frame sample/probability space S, we may extract rows using the [] operator
+S <- tosscoin(2, makespace = TRUE)
+
+S[1:3, ]
+
+S[c(2, 4), ]
+
+## We may also extract rows that satisfy a logical expression using the subset function, for instance
+
+S <- cards()
+
+subset(S, suit == "Heart")
+
+subset(S, rank %in% 7:9)
+
+## We could continue indefinitely
+
+subset(rolldie(3), X1 + X2 + X3 > 16)
+
+
+# Functions for Finding Subsets
+
+## The function %in% helps to learn whether each value of one vector lies somewhere inside another vector
+
+x <- 1:10
+y <- 8:12
+y %in% x
+
+
+## It is more common to want to know whether the whole vector y is in x. We can do this with the isin function
+
+isin(x, y)
+
+## something like all(y %in% x), which would give a single result, TRUE
+
+x <- 1:10
+y <- c(3, 3, 7)
+
+all(y %in% x)
+
+isin(x, y)
+
+## an optional argument ordered which tests whether the elements of y appear in x in the order in which they are appear in y
+
+isin(x, c(3, 4, 5), ordered = TRUE)
+
+isin(x, c(3, 5, 4), ordered = TRUE)
+
+## A data.frame method was written for isin that simply applies the function to each row of the data frame
+S <- rolldie(4)
+
+subset(S, isin(S, c(2, 2, 6), ordered = TRUE))
+
+
+# Set Union, Intersection, and Difference
+
+S = cards()
+A = subset(S, suit == "Heart")
+B = subset(S, rank %in% 7:9)
+##We can now do some set algebra:
+union(A, B)
+
+
+intersect(A, B)
+
+setdiff(B, A)  # setdiff in not symmetric
+```
+
+
+# Model Assignment
+```{r}
+S <- cards(makespace = TRUE)
+A <- subset(S, suit == "Heart")
+B <- subset(S, rank %in% 7:9)
+
+prob(A)
+
+prob(S, suit == "Heart")
+
+## prob(intersect(x, subset(x, event)))
+
+
+# Counting Methods
+
+## The factorial n! is computed with the command factorial(n) and the binomial coefficient (n Choose  k) with the command choose(n,k)
+
+nsamp(n = 3, k = 2, replace = TRUE, ordered = TRUE)
+
+nsamp(n = 3, k = 2, replace = FALSE, ordered = TRUE)
+
+nsamp(n = 3, k = 2, replace = FALSE, ordered = FALSE)
+
+nsamp(n = 3, k = 2, replace = TRUE, ordered = FALSE)
+
+## Multiplication Rule
+## A benefit of 'nsamp' is that it is vectorized so that entering vectors instead of numbers for n, k, replace, and ordered results in a vector of corresponding answers.
+
+## Example: There are 11 artists who each submit a portfolio containing 7 paintings for competition in an art exhibition. Unfortunately, the gallery director only has space in the winners’ section to accommodate 12 paintings in a row equally spread over three consecutive walls. The director decides to give the first, second, and third place winners each a wall to display the work of their choice. The walls boast 31 separate lighting options apiece. How many displays are possible?
+## Answer: The judges will pick 3 (ranked) winners out of 11 (with rep = FALSE, ord = TRUE). Each artist will select 4 of his/her paintings from 7 for display in a row (rep = FALSE, ord = TRUE), and lastly, each of the 3 walls has 31 lighting possibilities (rep = TRUE, ord = TRUE). These three numbers can be calculated quickly with R program
+
+n <- c(11, 7, 31)
+k <- c(3, 4, 3)
+r <- c(FALSE, FALSE, TRUE)
+x <- nsamp(n, k, rep = r, ord = TRUE)
+
+prod(x)
+
+## alternative
+(11 * 10 * 9) * (7 * 6 * 5 * 4) * 313
+## or
+prod(9:11) * prod(4:7) * 313
+
+## Example: The Birthday Problem. Suppose that there are n people together in a room. Each person announces the date of his/her birthday in turn. The question is: what is the probability of at least one match?
+
+## There is a Birthday problem item in the Probability menu of RcmdrPlugin.IPSUR
+g <- Vectorize(pbirthday.ipsur)
+plot(1:50, g(1:50),
+xlab = "Number of people in room",
+ylab = "Prob(at least one match)",
+main = "The Birthday Problem")
+abline(h = 0.5)
+abline(v = 23, lty = 2) # dashed line
+
+```
+
+# Conditional Probability
+```{r}
+S <- rolldie(2, makespace = TRUE) # assumes ELM
+head(S) # first few rows
+
+A <- subset(S, X1 == X2)   # event A
+B <- subset(S, X1 + X2 >= 8) # event B
+
+prob(A, given = B)  # 0.2
+prob(B, given = A) # 0.5
+## alternative
+prob(S, X1==X2, given = (X1 + X2 >= 8) ) # 0.2
+prob(S, X1+X2 >= 8, given = (X1==X2) ) # 0.5
+
+
+#
+library(prob)
+L <- cards()
+M <- urnsamples(L, size = 2)
+N <- probspace(M)
+
+prob(N, all(rank == "A")) # 0.004524887
+
+
+## Example: Consider an urn with 10 balls inside, 7 of which are red and 3 of which are green. Select 3 balls successively from the urn
+
+L <- rep(c("red", "green"), times = c(7, 3))
+M <- urnsamples(L, size = 3, replace = FALSE, ordered = TRUE)
+N <- probspace(M)
+## "red" appears 3 times
+prob(N, isrep(N, "red", 3))  # 0.2916667
+## What is the probability of getting two "red"s?
+prob(N, isrep(N, "red", 2)) # 0.525
+## What is the probability of observing "red", then "green", then "red"?
+prob(N, isin(N, c("red", "green", "red"), ordered = TRUE)) # 0.175
+## What is the probability of observing "red", "green", and "red", in no particular order?
+prob(N, isin(N, c("red", "green", "red"))) # 0.525
+
+## Independent events
+## Example: Toss ten coins. What is the probability of observing at least one Head?
+S <- tosscoin(10, makespace = TRUE)
+A <- subset(S, isrep(S, vals = "T", nrep = 10))
+1 - prob(A) # 0.9990234
+
+```
+
+
+
