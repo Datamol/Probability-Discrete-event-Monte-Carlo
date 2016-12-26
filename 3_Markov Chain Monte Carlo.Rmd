@@ -1,0 +1,106 @@
+---
+title: "3_Markov Chain Monte Carlo"
+author: "Amol Jadhav"
+date: "December 26, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## The following is a toy problem for which an exact analysis is possible. Consider sequences of length m consisting of 0s and 1s. Call a sequence good if it has no adjacent 1s. What is the expected number of 1s in a good sequence if all good sequences are equal likely?
+
+```{r}
+# Generate a random 0-1 sequence with no adjacent 1's
+# count the number of 1's and take the average
+# init:   initial sequence
+# n:       number of steps to run the chain
+
+adjacent <- function(init, n)
+{ k <- length(init)
+ tot <- 0  # total number of 1's
+ new <-c(2, init,2)  # pad sequence at the ends
+ for (i in 1:n) { 
+ index <- 1 +sample(1:k,1)
+ newbit <- 0 + !new[index]   # flip the bit
+ if (newbit==0) {
+ 	new[index] <- 0
+ 	tot <- tot+sum(new)
+ 	next} else {
+ 		if (new[index-1]==1 | new[index+1] ==1) {
+ 			tot <-tot + sum(new)
+ 			next}
+ 		else {new[index] <- 1} 
+ 	tot <- tot + sum(new)} 
+} 
+tot/n- 4  }  # subtract both endpoints
+m <- 100
+init <- rep(0,m)  # Start at sequence of all 0's
+
+adjacent(init,100000)  # 27.75581
+
+```
+
+## Power-law distributions are positive probability distributions of the form πi ∝ i^s, for some constant S. Unlike distributions with exponentially decaying tails (e.g., Poisson, geometric, exponential, normal), power-law distributions have fat tails, and thus are often used to model skewed data. Let πi = i−3∕2/∑∞k=1 k−3∕2 , for i = 1, 2,...
+## Implement a Metropolis–Hastings algorithm to simulate from π.
+```{r}
+# Simulate power law simulation
+set.seed(12345)
+trials <- 1000000
+simlist <- numeric(trials)
+simlist[1] <- 2
+for (i in 2:trials)
+  {  	if (simlist[i-1] ==1) {
+  		p <- (1/2)^(5/2)
+  		new <- sample(c(1,2),1,prob=c(1-p,p))
+  		simlist[i] <- new
+  		} else { leftright <- sample(c(-1,1),1)
+  			if  (leftright == -1)  { simlist[i] <- simlist[i-1] - 1} else {
+  			    p <- (simlist[i-1]/(simlist[i-1]+1))^(3/2)
+  			   simlist[i] <- sample(c(simlist[i-1],1+simlist[i-1]),1,prob=c(1-p,p))
+  			} } } 
+dat <- simlist[1000:trials]  # discard first 1000
+tab <- table(dat)/length(dat)	
+tab[1:9]
+
+#          1          2          3          4          5          6          7          8          9 
+# 0.40712171 0.14382768 0.07868861 0.05133328 0.03667964 0.02800197 0.02181880 0.01784182 0.01479278 
+```
+
+## Using only a uniform random number generator, simulate a standard normal random variable using MCMC
+```{r}
+set.seed(12345)
+trials <- 1000000
+simlist <- numeric(trials)
+state <- 0
+for (i in 2:trials) {
+  prop <- runif(1, state-1,state+1)
+  acc <- exp(-(prop^2-state^2)/2)
+  if (runif(1) < acc) state <- prop
+  simlist[i] <- state
+}
+hist(simlist,xlab="",main="",prob=T)
+curve(dnorm(x),-4,4,add=T)
+```
+
+## The Gibbs sampler is implemented to simulate (X, Y) from a bivariate standard normal distribution with correlation ρ. At each step of the algorithm, one component of a two-element vector is updated by sampling from its conditional distribution given the other component. Updates switch back and forth. The resulting sequence of bivariate samples converges to the target distribution
+## We simulated a bivariate standard normal distribution with ρ = 0.60 using the Gibbs sampler. The chain was run for 2,000 steps. In R, the output is a 2000 × 2 matrix.
+
+```{r}
+rho <- - 0.60
+trials <- 2000
+sdev <- sqrt(1 - rho^2)
+simlist <- matrix(rep(0,2*trials),ncol=2)
+for (i in 2:trials) {
+	simlist[i,1] <- rnorm(1,rho*simlist[i-1,2], sdev)
+	simlist[i,2] <- rnorm(1, rho*simlist[i,1], sdev)
+}
+plot(simlist,pch=20,xlab="x",ylab="y",main="")
+```
+
+## 
+
+```{r}
+
+```
