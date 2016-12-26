@@ -231,7 +231,7 @@ pr # stationary probabilities 0.22198000 0.15271642 0.07125255 0.08425917 0.1223
 
 # Example: Snakes and Ladders
 
-##Chutes and Ladders is based on an ancient Indian game called Snakes and Ladders. It is played on a 100-square board, as in Figure 3.13. Players each have a token and take turns rolling a six-sided die and moving their token by the corresponding number of squares. If a player lands on a ladder, they immediately move up the ladder to a higher-numbered square. If they move on a chute, or snake, they drop down to a lower-numbered square. The finishing square 100 must be reached by an exact roll of the die (or by landing on square 80 whose ladder climbs to the finish). The first player to land on square 100 wins.
+##Chutes and Ladders is based on an ancient Indian game called Snakes and Ladders. It is played on a 100-square board, players each have a token and take turns rolling a six-sided die and moving their token by the corresponding number of squares. If a player lands on a ladder, they immediately move up the ladder to a higher-numbered square. If they move on a chute, or snake, they drop down to a lower-numbered square. The finishing square 100 must be reached by an exact roll of the die (or by landing on square 80 whose ladder climbs to the finish). The first player to land on square 100 wins.
 ##The game is a Markov chain since the player’s position only depends on their previous position and the roll of the die. The chain has 101 states as the game starts with all players off the board (state 0). For the Markov model, once the chain hits state 100 it stays at 100. That is, if P is the transition matrix, then P(100,100) = 1.
 ```{r}
 # Build the transition matrix P
