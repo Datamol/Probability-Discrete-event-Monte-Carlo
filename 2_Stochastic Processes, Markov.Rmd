@@ -1,0 +1,357 @@
+---
+title: "2_Stochastic Processes, Markov"
+author: "Amol Jadhav"
+date: "December 25, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# Reference: Introduction to Stochastic Processes with R (Robert P. Dobrow)
+```
+
+
+## The gambler’s ruin: A gambler starts with k dollars. On each play a fair coin is tossed and the gambler wins $1 if heads occurs, or loses $1 if tails occurs. The gambler stops when he reaches $n (n > k) or loses all his money. Find the probability that the gambler will eventually lose.
+```{r}
+# gamble(k, n, p)
+  #   k: Gambler's initial state
+  #   n: Gambler plays until either $n or Ruin
+  #   p: Probability of winning $1 at each play
+  #   Function returns 1 if gambler is eventually ruined
+  #                    returns 0 if gambler eventually wins $n
+  
+gamble <- function(k,n,p) {
+	stake <- k
+	while (stake > 0 & stake < n) {
+		bet <- sample(c(-1,1),1,prob=c(1-p,p))
+		stake <- stake + bet
+	}
+	if (stake == 0) return(1) else return(0)
+	}   
+
+k <- 10 
+n <-  40  
+p <- 1/2  
+trials <- 1000
+simlist <- replicate(trials, gamble(k, n, p))
+mean(simlist) # Estimate of probability that gambler is ruined  0.76
+# For p = 0.5, exact probability is (n-k)/n 
+
+```
+
+
+## Every day Bob goes to the pizza shop, orders a slice of pizza, and picks a topping—pepper, pepperoni, pineapple, prawns, or prosciutto—uniformly at random. On the day that Bob first picks pineapple, find the expected number of prior days in which he picked pepperoni.
+```{r}
+# Simulation of Bob's pizza probability
+
+set.seed(12345)
+trials <- 10000
+simlist <- numeric(trials)
+toppings <- c("pepper","pepperoni","pineapple","prawns","proscuitto")
+for (i in 1:trials) {
+pineapple <- 0
+pepperoni <- 0
+while (pineapple == 0) {
+   pick <- sample(toppings,1)
+   if (pick == "pepperoni") pepperoni <- pepperoni + 1
+   if (pick == "pineapple") pineapple <- 1
+   }	
+simlist[i] <- pepperoni
+}
+mean(simlist)  # 0.9802
+
+```
+
+## Ellen’s insurance will pay for a medical expense subject to a $100 deductible. Assume that the amount of the expense is exponentially distributed with mean $500. Find the expectation and standard deviation of the payout.
+```{r}
+set.seed(12345)
+trials <- 100000
+simlist <- numeric(trials)
+for (i in 1:trials) {
+expense <- rexp(1,1/500)
+payout <- max(0, expense-100)
+simlist[i] <- payout}
+
+mean(simlist) # 408.4649
+
+sd(simlist) # 490.9125
+```
+
+
+# PART II - Markov Models
+
+## Cancer Study
+## Metastatic site number system.
+## From: "A stochastic Markov chain model to describe lung cancer growth and metastatis" by Newton, et al. PLoS ONE, Volume 7, Issue 4, April 2012, pp 1-18.
+#  1	Adrenal 2	Anus 3	Appendix 4	Bile Duct 5	Bladder 6	Bone 7	Brain 8	Branchial Cyst 9	Breast 10	Cervix 11	Colon 12	Diaphragm 13	Duodenum 14	Esophagus 15	Eye	16	Gallbladder 17	Heart 18	Kidney 19 Large intestine 20	Larynx  21	Lip	22	Liver 23	Lung 24	Lymph Nodes (reg) 25	Lymph Nodes (dist) 26	Omentum 27	Ovaries	28	Pancreas 29	Penis   30	Pericardium 31	Peritoneum 32	Pharynx 33	Pleura 34	Prostate 35	Rectum 36	Retroperitoneum 37	Salivary 38 Skeletal Muscle 39	Skin 40	Small intenstine 41	Spleen 42	Stomach 43	Testes 44	Thyroid 45	Tongue 46	Tonsil 47	Unknown 48	Uterus 49	Vagina 50	Vulva
+
+```{r}
+mat <- read.csv(file.choose(),header=T) # lungcancer.csv
+head(mat)
+
+## Simulate discrete-time Markov chain
+# Simulates n steps of a Markov chain markov(init,mat,n,states)
+# Generates X0, ..., Xn for a Markov chain with initiial distribution init and transition matrix mat
+# Labels can be a character vector of states; default is 1, .... k
+
+markov <- function(init,mat,n,labels) { 
+	if (missing(labels)) labels <- 1:length(init)
+simlist <- numeric(n+1)
+states <- 1:length(init)
+simlist[1] <- sample(states,1,prob=init)
+for (i in 2:(n+1)) 
+	{ simlist[i] <- sample(states,1,prob=mat[simlist[i-1],]) }
+labels[simlist]
+}
+
+init <- c(rep(0,22),1,rep(0,27)) # Starting state 23 is Lung
+n <- 8
+markov(init,mat,n)
+markov(init,mat,n)
+markov(init,mat,n)
+
+# Common sites are 23 (lungs), 24 and 25 (lymph nodes) and 22 (liver)
+```
+
+## Graduation Dropout
+## University administrators have developed a Markov model to simulate graduation rates at their school. Students might drop out, repeat a year, or move on to the next year. Students have a 3% chance of repeating the year. First-years and sophomores have a 6% chance of dropping out. For juniors and seniors, the drop-out rate is 4%.
+
+```{r}
+# Simulating graduation, drop-out rate
+
+init <- c(0,1,0,0,0,0) # student starts as fresh
+P <- matrix(c(1,0,0,0,0,0,0.06,0.03,0.91,0,0,0,0.06,0,0.03,0.91,0,0,0.04,
+  0,0,0.03,0.93,0,0.04,0,0,0,0.03,0.93,0,0,0,0,0,1),nrow=6,byrow=T)
+states <- c("Drop","Fr","So","Jr","Se","Grad")
+rownames(P) <- states
+colnames(P) <- states
+P
+set.seed(12345)
+markov(init,P,10,states)
+sim <- replicate(10000,markov(init,P,10,states)[11])
+table(sim)/10000 # Drop 0.1934  Grad  0.8066
+sim
+```
+
+# PART III - Markov Chain for Long term
+
+## After work, Angel goes to the gym and either does aerobics, weights, yoga, or gets a massage. Each day, Angel decides her workout routine based on what she did the previous day according to the Markov transition matrix.
+
+## Angel’s gym visits are simulated for 100 days. During that time, Angel did aerobics on 26 days, got a massage 14 times, did weights. On 31 days, and did yoga 29 times.
+
+```{r}
+P <- matrix(c(0.1,0.2,0.4,0.3,0.4,0,0.4,0.2,0.3,0.3,0,0.4,0.2,0.1,0.4,0.3),
+  nrow=4, byrow=TRUE)
+lab <- c("Aerobics","Massage","Weights","Yoga")
+rownames(P) <- lab
+colnames(P) <- lab
+P
+init <- c(1/4,1/4,1/4,1/4) # initial distribution
+states <- c("a","m","w","y")
+# simulate chain for 100 steps
+set.seed(12345)
+simlist <- markov(init,P,100,states)
+simlist  
+table(simlist)/100 #   a 0.27   m 0.16   w 0.29   y 0.29
+
+steps <- 1000000
+simlist <- markov(init,P,steps,states)
+table(simlist)/steps 
+```
+
+# Expected return time
+
+## Consider a Markov chain with transition matrix
+##P = a    b   c
+##a   0    1   0
+##b   1/2  0  1/2
+##c  1/3  1/3 1/3  
+## From state a, find the expected return time E(Ta | X0 = a) using first-step analysis.
+```{r}
+P <- matrix(c(0,1,0,1/2,0,1/2,1/3,1/3,1/3),nrow=3,byrow=TRUE)
+states <- c("a","b","c")
+colnames(P) <- states
+rownames(P) <- states
+init <- c(1,0,0)
+markov(init,P,25,states)
+
+trials <- 10000
+simlist <- numeric(trials)
+for (i in 1:trials) {
+	path <- markov(init,P,25,states)
+	  ## find index of 2nd occurrence of "a"
+	  ## subtract 1 to account for time 0
+	returntime <- which(path == "a")[2] - 1
+	simlist[i] <- returntime
+}
+## expected return time to state "a"
+mean(simlist)  # 3.3346
+
+```
+
+
+# Example: Google’s PageRank search algorithm model is based on the random surfer model, which is a random walk on the webgraph.
+
+## The network is described by the network matrix
+##N = a   b  c   d   e   f   g
+##a   0   0  0   0  1∕2  1/2  0 
+##b  1/3  0 1/3  0   0  1/3  0 
+##c  0    0  0  1/2  0  1∕2   0
+##d  0    0  0   0   0  1    0
+##e  1/4  0  0  1/4  0  1∕4  1∕4
+##f  1/2 1/2 0   0   0  0    0
+##g  0    0  0   0   0  0    0
+
+```{r}
+Q <- matrix(c(0,0,0,0,1/2,1/2,0,1/3,0,1/3,0,0,1/3,0,0,0,0,1/2,0,1/2,0,0,0,0,0,0,1,0,
+  1/4,0,0,1/4,0,1/4,1/4,1/2,1/2,0,0,0,0,0,1/7,1/7,1/7,1/7,1/7,1/7,1/7),nrow=7,byrow=TRUE)
+states <- c("a","b","c","d","e","f","g")
+rownames(Q) <- states
+colnames(Q) <- states
+Q
+A <- matrix(rep(1/7,49),nrow=7)
+rownames(A) <- states
+colnames(A) <- states
+A
+
+## Stationary distribution of discrete-time Markov chain
+##  (uses eigenvectors)
+stationary <- function(mat) {
+x = eigen(t(mat))$vectors[,1]
+as.double(x/sum(x))
+}
+
+# transition matrix with damping factor p=0.85
+P <- 0.85*Q + 0.15*A
+pr <- stationary(P)
+pr # stationary probabilities 0.22198000 0.15271642 0.07125255 0.08425917 0.12232440 0.29349062 0.05397684
+```
+
+
+# Example: Snakes and Ladders
+
+##Chutes and Ladders is based on an ancient Indian game called Snakes and Ladders. It is played on a 100-square board, as in Figure 3.13. Players each have a token and take turns rolling a six-sided die and moving their token by the corresponding number of squares. If a player lands on a ladder, they immediately move up the ladder to a higher-numbered square. If they move on a chute, or snake, they drop down to a lower-numbered square. The finishing square 100 must be reached by an exact roll of the die (or by landing on square 80 whose ladder climbs to the finish). The first player to land on square 100 wins.
+##The game is a Markov chain since the player’s position only depends on their previous position and the roll of the die. The chain has 101 states as the game starts with all players off the board (state 0). For the Markov model, once the chain hits state 100 it stays at 100. That is, if P is the transition matrix, then P(100,100) = 1.
+```{r}
+# Build the transition matrix P
+P <- matrix(rep(0,101^2),nrow=101)
+r <- function(row,inp) 
+for (i in 1:6) {
+	P[row+1,inp[i]+1] <<- P[row+1,inp[i]+1] + 1/6 }
+ r(0,c(38,2,3,14,5,6))
+ r(1,c(2,3,14,5,6,7))
+ r(2,c(3,14,5,6,7,8))
+ r(3,c(14,5,6,7,8,31))
+ r(4,c(5,6,7,8,31,10))
+ r(5,c(6,7,8,31,10,11))
+ r(6,c(7,8,31,10,11,12))
+ r(7,c(8,31,10,11,12,13))
+ r(8,c(31,10,11,12,13,14))
+ r(9,c(10,11,12,13,14,15))
+ r(10,c(11,12,13,14,15,6))
+ r(11,c(12,13,14,15,6,17))
+ r(12,c(13,14,15,6,17,18))
+ r(13,c(14,15,6,17,18,19))
+ r(14,c(15,6,17,18,19,20))
+ r(15,c(6,17,18,19,20,42))
+ r(16,c(17,18,19,20,42,22))
+ r(17,c(18,19,20,42,22,23))
+ r(18,c(19,20,42,22,23,24))
+ r(19,c(20,42,22,23,24,25))
+ r(20,c(42,22,23,24,25,26))
+ r(21,c(22,23,24,25,26,27))
+ r(22,c(23,24,25,26,27,84))
+ r(23,c(24,25,26,27,84,29))
+ r(24,c(25,26,27,84,29,30))
+ r(25,c(26,27,84,29,30,31))
+ r(26,c(27,84,29,30,31,32))
+ r(27,c(84,29,30,31,32,33))
+ r(28,c(29,30,31,32,33,34))
+ r(29,c(30,31,32,33,34,35))
+ r(30,c(31,32,33,34,35,44))
+ r(31,c(32,33,34,35,44,37))
+ r(32,c(33,34,35,44,37,38))
+ r(33,c(34,35,44,37,38,39))
+ r(34,c(35,44,37,38,39,40))
+ r(35,c(44,37,38,39,40,41))
+ r(36,c(37,38,39,40,41,42))
+ r(37,c(38,39,40,41,42,43))
+ r(38,c(39,40,41,42,43,44))
+ r(39,c(40,41,42,43,44,45))
+ r(40,c(41,42,43,44,45,46))
+ r(41,c(42,43,44,45,46,47))
+ r(42,c(43,44,45,46,47,26))
+ r(43,c(44,45,46,47,26,11))
+ r(44,c(45,46,47,26,11,50))
+ r(45,c(46,47,26,11,50,67))
+ r(46,c(47,26,11,50,67,52))
+ r(47,c(26,11,50,67,52,53))
+ r(48,c(11,50,67,52,53,54))
+ r(49,c(50,67,52,53,54,55))
+ r(50,c(67,52,53,54,55,53))
+ r(51,c(52,53,54,55,53,57))
+ r(52,c(53,54,55,53,57,58))
+ r(53,c(54,55,53,57,58,59))
+ r(54,c(55,53,57,58,59,60))
+ r(55,c(53,57,58,59,60,61))
+ r(56,c(57,58,59,60,61,19))
+ r(57,c(58,59,60,61,19,63))
+ r(58,c(59,60,61,19,63,60))
+ r(59,c(60,61,19,63,60,65))
+ r(60,c(61,19,63,60,65,66))
+ r(61,c(19,63,60,65,66,67))
+ r(62,c(63,60,65,66,67,68))
+ r(63,c(60,65,66,67,68,69))
+ r(64,c(65,66,67,68,69,70))
+ r(65,c(66,67,68,69,70,91))
+ r(66,c(67,68,69,70,91,72))
+ r(67,c(68,69,70,91,72,73))
+ r(68,c(69,70,91,72,73,74))
+ r(69,c(70,91,72,73,74,75))
+ r(70,c(91,72,73,74,75,76))
+ r(71,c(72,73,74,75,76,77))
+ r(72,c(73,74,75,76,77,78))
+ r(73,c(74,75,76,77,78,79))
+ r(74,c(75,76,77,78,79,100))
+ r(75,c(76,77,78,79,100,81))
+ r(76,c(77,78,79,100,81,82))
+ r(77,c(78,79,100,81,82,83))
+ r(78,c(79,100,81,82,83,84))
+ r(79,c(100,81,82,83,84,85))
+ r(80,c(81,82,83,84,85,86))
+ r(81,c(82,83,84,85,86,24))
+ r(82,c(83,84,85,86,24,88))
+ r(83,c(84,85,86,24,88,89))
+ r(84,c(85,86,24,88,89,90))
+ r(85,c(86,24,88,89,90,91))
+ r(86,c(24,88,89,90,91,92))
+ r(87,c(88,89,90,91,92,73))
+ r(88,c(89,90,91,92,73,94))
+ r(89,c(90,91,92,73,94,75))
+ r(90,c(91,92,73,94,75,96))
+ r(91,c(92,73,94,75,96,97))
+ r(92,c(73,94,75,96,97,78))
+ r(93,c(94,75,96,97,78,99))
+ r(94,c(75,96,97,78,99,100))
+ r(95,c(96,97,78,99,100,95))
+ r(96,c(97,78,99,100,96,96))
+ r(97,c(78,99,100,97,97,97))
+ r(98,c(99,100,98,98,98,98))
+ r(99,c(100,99,99,99,99,99))
+ r(100,c(100,100,100,100,100,100))
+
+ set.seed(12345)
+init <- c(1,rep(0,100))
+## simulate the game 
+markov(init,P,50,0:100)
+
+simlist <- replicate(1000,which(markov(init,P,500,0:100) == 100)[1])
+mean(simlist)  # 41.237
+
+# fundamental matrix
+f <- solve(diag(100) - M[1:100,1:100])
+## absorbtion probabilities
+f %*% rep(1,100)
+
+```
