@@ -1,0 +1,70 @@
+---
+title: "4_Poisson Process"
+author: "Amol Jadhav"
+date: "December 26, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Arrival, inter-arrival time, Memorylessness
+
+### Amy & Zach each want ot take a bus. Buses arrive at a bus stop according to a Poisson process with parameter λ = 1∕30. That is, the times between buses have an exponential distribution, and buses arrive, on average, onceevery 30 minutes. Unlucky Amy gets to the bus stop just as a bus pulls out of the station. Her waiting time for the next bus is about 30 minutes. Zach arrives at the bus stop 10 minutes after Amy. Remarkably, the time that Zach waits for a bus also has an exponential distribution with parameter λ = 1∕30. Memorylessness means that their waiting time distributions are the same, and they will both wait, on average, the same amount of time!
+### To prove it true, observe that Zach waits more than t minutes if and only if Amy waits more than t + 10 minutes, given that a bus does not come in the first 10 minutes.
+
+```{r}
+trials <- 5000
+amy <- numeric(trials)
+zach <- numeric(trials)
+
+for (i in 1:trials) {
+bus <- rexp(1,1/30)
+amy[i] <- bus
+while (bus < 10) { bus <- bus + rexp(1,1/30) }
+zach[i] <- bus-10
+}
+
+mean(amy) # 29.541
+mean(zach) # 29.804
+
+par(mfrow=c(1,2))
+hist(amy,xlab="",prob=T,ylab="",main="",yaxt="n")
+mtext(1,text="Amy")
+axis(2,at=c(0,.01,.02),labels=c(0,0.01, 0.02))
+hist(zach,xlab="",prob=T,ylab="",yaxt="n",main="")
+mtext(1,text="Zach")
+axis(2,at=c(0,.01,.02),labels=c(0,0.01,0.02))
+```
+
+## Parting Paradox
+
+### How wonderful that we have met with a paradox. Now we have some hope of making progress. –Niels Bohr
+
+### The following classic is based on Feller (1968). Buses arrive at a bus stop according to a Poisson process. The time between buses, on average, is 10 minutes. Lisa gets to the bus stop at time t. How long can she expect to wait for a bus?
+
+### Here are two possible answers:
+###(i) By memorylessness, the time until the next bus is exponentially distributed with mean 10 minutes. Lisa will wait, on average, 10 minutes. (ii) Lisa arrives at some time between two consecutive buses. The expected time between consecutive buses is 10 minutes. By symmetry, her expected waiting time should be half that, or 5 minutes.
+
+```{r}
+mytime <- 50
+lambda <- 1/10
+trials <- 10000
+simlist <- numeric(trials)
+for (i in 1:trials) {
+	N <- rpois(1,300*lambda)
+	arrivals <- sort(runif(N,0,300))
+	wait <- arrivals[arrivals > mytime][1] - mytime
+	simlist[i] <- wait
+}
+
+mean(simlist)  # 10.098
+```
+
+##
+
+```{r}
+
+```
+
